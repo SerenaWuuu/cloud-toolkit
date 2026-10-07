@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cloud Toolkit: cost estimates and naming that behaves</title>
+  <meta name="description" content="Estimate BigQuery and Synapse serverless costs, and generate cloud resource names that actually pass validation. Runs 100% in your browser.">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="console-bar">
+    <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span class="console-title">cloud-toolkit <span class="dim">- zsh</span></span>
+    <button class="status-dot" id="statusDot" title="all systems nominal" aria-label="status: all systems nominal"></button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="hero-kicker">$ whoami</p>
+      <h1>Cloud Toolkit</h1>
+      <p class="hero-sub">Two small tools for two big cloud headaches: guessing your monthly bill, and naming things so the portal stops yelling at you. No servers, no signups, everything runs in your browser.</p>
+    </section>
+
+    <nav class="tabs" role="tablist" aria-label="Tools">
+      <button class="tab active" role="tab" aria-selected="true" data-tab="cost" id="tabbtn-cost">Cost Estimator</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="naming" id="tabbtn-naming">Naming Generator</button>
+    </nav>
+
+    <!-- ============ COST ESTIMATOR ============ -->
+    <section class="panel active" id="panel-cost" role="tabpanel" aria-labelledby="tabbtn-cost">
+      <div class="grid">
+        <div class="card inputs">
+          <h2>Your workload</h2>
+
+          <label class="field">
+            <span class="field-label">Data scanned per month</span>
+            <span class="field-value"><strong id="tbDisplay">20</strong> TB</span>
+          </label>
+          <input type="range" id="tbSlider" min="0" max="500" step="1" value="20" aria-label="Terabytes scanned per month">
+          <div class="row">
+            <label class="field inline">
+              <span class="field-label">Exact TB</span>
+              <input type="number" id="tbNumber" min="0" max="100000" step="1" value="20">
+            </label>
+            <label class="field inline">
+              <span class="field-label">BigQuery slots <span class="dim">(optional)</span></span>
+              <input type="number" id="bqSlots" min="0" max="10000" step="1" value="0" placeholder="0">
+            </label>
+            <label class="field inline">
+              <span class="field-label">Storage <span class="dim">(TB, optional)</span></span>
+              <input type="number" id="bqStorage" min="0" max="100000" step="1" value="0" placeholder="0">
+            </label>
+          </div>
+          <p class="hint">Slots use BigQuery Standard edition pricing. Storage uses active storage pricing. Leave them at 0 if you just want the scan math.</p>
+        </div>
+
+        <div class="card results">
+          <h2>Monthly estimate</h2>
+          <div id="costEmpty" class="empty-state">
+            <p class="empty-emoji" aria-hidden="true">🦥</p>
+            <p>Zero terabytes scanned. Your finance team sends its regards.</p>
+          </div>
+          <div id="costResults" hidden>
+            <div class="compare">
+              <div class="service">
+                <div class="service-head">
+                  <span class="service-name gcp">BigQuery</span>
+                  <span class="service-total" id="bqTotal">$0.00</span>
+                </div>
+                <div class="bar"><i id="bqBar" class="gcp"></i></div>
+                <ul class="breakdown" id="bqBreakdown"></ul>
+              </div>
+              <div class="service">
+                <div class="service-head">
+                  <span class="service-name azure">Synapse serverless</span>
+                  <span class="service-total" id="synTotal">$0.00</span>
+                </div>
+                <div class="bar"><i id="synBar" class="azure"></i></div>
+                <ul class="breakdown" id="synBreakdown"></ul>
+              </div>
+            </div>
+            <p class="verdict" id="verdict"></p>
+            <p class="boba" id="boba"></p>
+          </div>
+          <p class="fineprint">Prices as of Oct 6, 2026: BigQuery on-demand $6.25/TB scanned (first 1 TB free), Standard slots $0.04/slot-hour, active storage $0.02/GB/month. Synapse serverless SQL $5/TB processed. Estimates only, your region and discounts may differ. The official pricing pages always win an argument.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ NAMING GENERATOR ============ -->
+    <section class="panel" id="panel-naming" role="tabpanel" aria-labelledby="tabbtn-naming" hidden>
+      <div class="grid">
+        <div class="card inputs">
+          <h2>Name builder</h2>
+
+          <span class="field-label">Cloud</span>
+          <div class="segmented" role="radiogroup" aria-label="Cloud provider">
+            <button class="seg active" data-cloud="azure" role="radio" aria-checked="true">Azure</button>
+            <button class="seg" data-cloud="gcp" role="radio" aria-checked="false">GCP</button>
+          </div>
+
+          <span class="field-label">Resource type</span>
+          <div class="chips" id="resourceChips"></div>
+
+          <label class="field">
+            <span class="field-label">Project / env prefix</span>
+            <input type="text" id="prefixInput" placeholder="e.g. analytics-dev" autocomplete="off" spellcheck="false" maxlength="60">
+          </label>
+          <p class="hint" id="resourceHint"></p>
+        </div>
+
+        <div class="card results">
+          <h2>Your name</h2>
+          <div class="name-output">
+            <code id="generatedName" aria-live="polite">type a prefix to begin</code>
+          </div>
+          <ul class="rules" id="ruleList"></ul>
+          <div class="actions">
+            <button class="btn primary" id="copyBtn">Copy</button>
+            <button class="btn" id="regenBtn">Regenerate suffix</button>
+          </div>
+          <p class="fineprint">Uniqueness against the real world is on you. Storage accounts and buckets must be globally unique, so if yours is taken, hit regenerate.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Built by <a href="https://github.com/SerenaWuuu/cloud-toolkit">Serena Wu</a>. Open source (MIT), runs entirely in your browser, phones home to nobody.</p>
+    <p class="dim">More from the lab: the Paws Friend Lab breed scanner, plus data and stargazing tools on the way.</p>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/naming.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
